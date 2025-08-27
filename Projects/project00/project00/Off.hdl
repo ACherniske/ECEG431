@@ -8,6 +8,5 @@ CHIP Off {
     OUT out;
 
     PARTS:
-    // Put your code here:
     Nand(a=true, b=true, out=out);
 }
