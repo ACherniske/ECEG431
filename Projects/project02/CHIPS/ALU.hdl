@@ -41,5 +41,30 @@ CHIP ALU {
         ng;      // if (out < 0)  equals 1, else 0
 
     PARTS:
-    //// Replace this comment with your code.
+    //handle x input
+    Mux16(a=x, b=false, sel=zx, out=xZeroed); //zero x if zx is 1
+    Not16(in=xZeroed, out=xNegated); //negate x if nx is 1
+    Mux16(a=xZeroed, b=xNegated, sel=nx, out=xProcessed); //final x value after zx and nx
+    //handle y input
+    Mux16(a=y, b=false, sel=zy, out=yZeroed); //zero y if zy is 1
+    Not16(in=yZeroed, out=yNegated); //negate y if ny is 1
+    Mux16(a=yZeroed, b=yNegated, sel=ny, out=yProcessed); //final y value after zy and ny
+    //handle f input
+    Add16(a=xProcessed, b=yProcessed, out=addResult); //x + y
+    And16(a=xProcessed, b=yProcessed, out=andResult); //x & y
+    Mux16(a=andResult, b=addResult, sel=f, out=funcOut); //choose between x + y and x & y based on f
+    //handle no input
+    Not16(in=funcOut, out=negatedFuncOut); //negate out if no is 1
+    Mux16(a=funcOut, b=negatedFuncOut, sel=no, 
+        out[0..7]=answerOutLeft, out[8..15]=answerOutRight, out[15]=answerOutLSB, 
+        out=answerOut); //final out value after no
+    //handle zr output
+    Or8Way(in=answerOutLeft, out=orLeft); //or all bits of left half of out together
+    Or8Way(in=answerOutRight, out=orRight); //or all bits of right half of out together
+    Or(a=orLeft, b=orRight, out=orResult); //or the two halves together
+    Not(in=orResult, out=zr); //if orResult is 0, then zr is 1
+    //handle ng output
+    And(a=answerOutLSB, b=true, out=ng); //ng is just the sign bit of out
+    //final output
+    Mux16(a=answerOut, b=false, sel=false, out=out); //final out value
 }
