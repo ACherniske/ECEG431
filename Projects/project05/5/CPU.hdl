@@ -1,0 +1,90 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/5/CPU.hdl
+/**
+ * The Hack Central Processing unit (CPU).
+ * Parses the binary code in the instruction input and executes it according to the
+ * Hack machine language specification. In the case of a C-instruction, computes the
+ * function specified by the instruction. If the instruction specifies to read a memory
+ * value, the inM input is expected to contain this value. If the instruction specifies
+ * to write a value to the memory, sets the outM output to this value, sets the addressM
+ * output to the target address, and asserts the writeM output (when writeM = 0, any
+ * value may appear in outM).
+ * If the reset input is 0, computes the address of the next instruction and sets the
+ * pc output to that value. If the reset input is 1, sets pc to 0.
+ * Note: The outM and writeM outputs are combinational: they are affected by the
+ * instruction's execution during the current cycle. The addressM and pc outputs are
+ * clocked: although they are affected by the instruction's execution, they commit to
+ * their new values only in the next cycle.
+ */
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+    /** Instruction decoding:
+    * C-instruction bits: 111 a c1 c2 c3 c4 c5 c6 d1 d2 d3 j1 j2 j3
+    * 3 d bits (d1 d2 d3) determine whether to store the ALU output in
+    * the A register (d1), the D register (d2), and/or the memory (d3) **/
+
+    /** Determine if A or C instruction **/
+    DMux(in=true, sel=instruction[15], a=aType, b=cType);
+    Or(a=aType, b=instruction[5], out=aInstruct); //load A register if A instruction or if C instruction with d1=1
+    And(a=cType, b=instruction[4], out=cInstruct); //load D register if C instruction with d2=1
+
+    /** A register **/
+    //for A-instructions: load instruction value directly
+    //for C-instructions: load ALU output
+    Mux16(a=aluOut, b=instruction, sel=aType, out=toAReg);
+    ARegister(in=toAReg, load=aInstruct, out=ARegOut, out[0..14]=addressM);
+
+    /** D register **/
+    //if instruction[12] (a bit) is 0, use A register value
+    //if instruction[12] (a bit) is 1, use memory value inM
+    Mux16(a=ARegOut, b=inM, sel=instruction[12], out=inputSel); 
+
+    /** ALU and ALU output handling **/
+    //X input: Always D register value
+    //Y input: Either A register value or inM (selected above)
+    //control bits: instruction[11..6]
+    ALU(x=dRegOut, y=inputSel, zx=instruction[11], nx=instruction[10],
+        zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6],
+        out=aluOut, zr=zrOut, ng=ngOut, out=outM);
+    And(a=cType, b=instruction[3], out=writeM); //write to memory if c instruction and d3 is 1;
+
+    //loads ALU output when C instruction with d2=1
+    DRegister(in=aluOut, load=cInstruct, out=dRegOut);
+
+    /** Program Counter:
+    *Choose between the operations PC=A and PC++ (default). 
+    *The jump condition determines if PC=A happens or not. **/
+    Or(a=zrOut, b=ngOut, out=leqZero);
+    Not(in=leqZero, out=posOut);
+
+    //decode jump conditions based on j1, j2, j3 bits and ALU flags:
+    And(a=instruction[0], b=posOut, out=jgt); //jump if greater than 0
+    And(a=instruction[1], b=zrOut, out=jeq); //jump if equal to 0
+    And(a=instruction[2], b=ngOut, out=jlt); //jump if less than 0
+    Or(a=jeq, b=jlt, out=jle); //less than or equal to 0
+    Or(a=jgt, b=jle, out=jump); //final jump output
+
+
+    And(a=jump, b=cType, out=doJump); //c instruction tells us to jump
+    Not(in=doJump, out=noJump); //incrementer
+
+    /** PC register **/
+    //if doJump is 1, load A register value
+    //if noJump is 1, increment PC
+    //if reset is 1, reset PC to 0
+    PC(in=ARegOut, load=doJump, inc=noJump, reset=reset, out[0..14]=pc);
+}
