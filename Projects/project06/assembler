@@ -1,0 +1,286 @@
+#!/usr/bin/env bash
+
+#init flags
+verbose=false
+show_help=false
+
+input_file=""
+
+show-help() {
+	echo ""
+	echo "Usage: $0 [OPTIONS] [FILE]"
+	echo ""
+	echo "OPTIONS:"
+	echo " -f, --file FILE | Specify input .asm file"
+	echo " -v, --verbose   | Enable Verbose Output"
+	echo " -h, --help      | Show this help message"
+	echo ""
+	echo " Files can also be provided as positional arguments"
+}
+
+while [[ $# -gt 0 ]]; do
+	case $1 in
+		-f|--file)
+			if [[ -n $2 && $2 != -* ]]; then
+				input_file=$2
+				shift 2
+			else
+				echo "ERROR: -f/--file requires a file argument" >&2
+				exit 1
+			fi
+			;;
+		--file=*)
+			input_file="${1#*=}"
+			shift
+			;;
+		-v|--verbose)
+			verbose=true
+			shift
+			;;
+		-h|--help)
+			show_help=true
+			shift
+			;;
+		-*)
+			echo "ERROR: Unknown option $1" >&2
+			show-help
+			exit 1
+			;;
+		*)
+			if [[ -z $input_file ]]; then
+				input_file=$1
+				shift
+			else
+				echo "ERROR: Multiple files specified. Use only one file." >&2
+				exit 1
+			fi
+			;;
+	esac
+done
+
+#show help if requested
+if [[ $show_help == true ]]; then
+	show-help
+	exit 0
+fi
+
+#check if required file argument is provided
+if [[ -z $input_file ]]; then
+	echo "ERROR: Input file is required. Specify with -f/--file or as a positional argument" >&2
+	exit 1
+fi
+
+#check if file exists
+if [[ ! -f $input_file ]]; then
+	echo "ERROR: File '$input_file' does not exist" >&2
+	exit 1
+fi
+
+#check if file is a .asm
+if [[ $input_file != *.asm ]]; then
+	echo "ERROR: File must have .asm extension" >&2
+	exit 1
+fi
+
+#verbose echo
+ve() {
+	if [[ $verbose == true ]];then
+		echo "$@" >&2
+		#sleep 0.1 #artificial pause
+	fi
+}
+
+#create output file name (.hack)
+output_file="${input_file%.asm}.hack"
+
+#start processing
+ve "Assembling $input_file --> $output_file"
+
+#init symbol table with predefined symbols
+declare -A symbol_table=(
+	["SP"]=0 ["LCL"]=1 ["ARG"]=2 ["THIS"]=3 ["THAT"]=4
+	["R0"]=0 ["R1"]=1 ["R2"]=2 ["R3"]=3 ["R4"]=4 ["R5"]=5
+	["R6"]=6 ["R7"]=7 ["R8"]=8 ["R9"]=9 ["R10"]=10 ["R11"]=11
+	["R12"]=12 ["R13"]=13 ["R14"]=14 ["R15"]=15 ["SCREEN"]=16384 ["KBD"]=24576
+)
+
+#variables for processing
+next_var_address=16
+pc=0 #program counter
+
+ve "Step 1: First pass - scanning for labels..."
+
+#first pass scan for labels and build symbol table
+#labels have form (LABEL)
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+	#remove whitespace and comments
+	line=$(echo "$line" | sed 's/\/\/.*$//' | xargs)
+
+	#skip empty lines
+	[[ -z "$line" ]] && continue
+
+	#check for label definition
+	if [[ "$line" =~ ^\(([^\)]+)\)$ ]]; then
+		label="${BASH_REMATCH[1]}"
+		symbol_table["$label"]=$pc
+		ve "Found label: $label at address $pc"
+	else
+		#inc pc
+		((pc++))
+	fi
+done < "$input_file"
+
+ve "First pass complete. Found $(($pc)) instructions and $((${#symbol_table[@]} - 23)) user-defined labels"
+ve "Step 2: Second pass - translating instructions..."
+
+#reset for second pass
+pc=0
+
+#create/clear output file
+> "$output_file"
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+	#remove whitespace and comments
+	original_line="$line"
+	line=$(echo "$line" | sed 's/\/\/.*$//' | xargs)
+
+	#skip empty lines and labels
+	[[ -z "$line" ]] && continue
+	[[ "$line" =~ ^\(.*\)$ ]] && continue
+
+	ve "Processing line $((pc + 1)): $line"
+
+	#determine instruction type and translate
+	if [[ "$line" =~ ^@ ]]; then
+		# A-instruction
+		address_part="${line#@}"
+		if [[ "$address_part" =~ ^[0-9]+$ ]]; then
+			#numeric address - use directly
+			address="$address_part"
+		else
+			#symbol - check symbol table
+			if [[ -n "${symbol_table[$address_part]}" ]]; then
+				address="${symbol_table[$address_part]}"
+			else
+				#new variable - assign next available address
+				symbol_table["$address_part"]=$next_var_address
+				address=$next_var_address
+				ve "New variable '$address_part' assigned to address $next_var_address"
+				((next_var_address++))
+			fi
+
+		fi
+
+		#convert to 16 bit binary
+		binary=""
+		num=$address
+		for ((i=15; i>=0; i--)); do
+			if ((num & (1 << i))); then
+				binary="${binary}1"
+			else
+				binary="${binary}0"
+			fi
+		done
+		echo "$binary" >> "$output_file"
+		ve "A-instruction: @$address_part --> $binary"
+
+	else
+		# C-instruction parsing
+		dest=""
+		comp=""
+		jump=""
+
+		#parse dest=comp;jump format
+		if [[ "$line" =~ = ]]; then
+			dest="${line%%=*}"
+			line="${line#*=}"
+		fi
+
+		if [[ "$line" =~ \; ]]; then
+			comp="${line%%;*}"
+			jump="${line#*;}"
+		else
+			comp="$line"
+		fi
+
+		ve "C-instruction parts: dest='$dest' comp='$comp' jump='$jump'"
+
+		#translate dest field (3 bits: A D M)
+		dest_bits="000"
+		case "$dest" in
+			"")	dest_bits="000" ;;
+			"M")	dest_bits="001" ;;
+			"D")	dest_bits="010" ;;
+			"MD")	dest_bits="011" ;;
+			"A")	dest_bits="100" ;;
+			"AM")	dest_bits="101" ;;
+			"AD")	dest_bits="110" ;;
+			"AMD")	dest_bits="111" ;;
+			*) echo "ERROR: Invalid dest field '$dest'" >&2; exit 1 ;;
+		esac
+
+		#translate comp field (7 bits: a c1 c2 c3 c4 c5 c6)
+		comp_bits=""
+		case "$comp" in
+			# a=0 computations
+			"0")	comp_bits="0101010" ;;
+			"1")	comp_bits="0111111" ;;
+			"-1")	comp_bits="0111010" ;;
+			"D")	comp_bits="0001100" ;;
+			"A")	comp_bits="0110000" ;;
+			"!D")	comp_bits="0001101" ;;
+			"!A")	comp_bits="0110001" ;;
+			"-D")	comp_bits="0001111" ;;
+			"-A")	comp_bits="0110011" ;;
+			"D+1")	comp_bits="0011111" ;;
+			"A+1")	comp_bits="0110111" ;;
+			"D-1")	comp_bits="0001110" ;;
+			"A-1")	comp_bits="0110010" ;;
+			"D+A")	comp_bits="0000010" ;;
+			"A+D")	comp_bits="0000010" ;;
+			"D-A")	comp_bits="0010011" ;;
+			"A-D")	comp_bits="0000111" ;;
+			"D&A")	comp_bits="0000000" ;;
+			"D|A")	comp_bits="0010101" ;;
+			# a=1 computations (when A is replaced with M)
+			"M")	comp_bits="1110000" ;;
+			"!M")	comp_bits="1110001" ;;
+			"-M")	comp_bits="1110011" ;;
+			"M+1")	comp_bits="1110111" ;;
+			"M-1")	comp_bits="1110010" ;;
+			"D+M")	comp_bits="1000010" ;;
+			"M+D")	comp_bits="1000010" ;;
+			"D-M")	comp_bits="1010011" ;;
+			"M-D")	comp_bits="1000111" ;;
+			"D&M")	comp_bits="1000000" ;;
+			"D|M")	comp_bits="1010101" ;;
+			*)	echo "ERROR: Invalid comp field '$comp'" >&2; exit 1 ;;
+		esac
+		#translate jump field (3bits)
+		jump_bits="000"
+		case "$jump" in
+			"")	jump_bits="000" ;;
+			"JGT")	jump_bits="001" ;;
+			"JEQ")	jump_bits="010" ;;
+			"JGE")	jump_bits="011" ;;
+			"JLT")	jump_bits="100" ;;
+			"JNE")	jump_bits="101" ;;
+			"JLE")	jump_bits="110" ;;
+			"JMP")	jump_bits="111" ;;
+			*)	echo "ERROR: Invalid jump field '$jump'" >&2; exit 1 ;;
+		esac
+
+		#combine into C-instructions: 111 + comp(7) +dest(3) + jump(3)
+		c_instruction="111${comp_bits}${dest_bits}${jump_bits}"
+		echo "$c_instruction" >> "$output_file"
+		ve "C-instruction: $line --> $c_instruction"
+	fi
+
+	((pc++))
+done < "$input_file"
+
+ve "Assembly complete!"
+ve "Generated $(wc -l < "$output_file") machine code instructions"
+
+echo "Assembly successful! Generated $output_file"
