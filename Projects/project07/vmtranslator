@@ -1,0 +1,558 @@
+#!/usr/bin/env bash
+
+#init flags
+verbose=false
+show_help=false
+
+input_file=""
+
+show-help() {
+	echo ""
+	echo "Usage: $0 [OPTIONS] [FILE]"
+	echo ""
+	echo "OPTIONS:"
+	echo " -f, --file FILE | Specify input .vm file"
+	echo " -v, --verbose   | Enable Verbose Output"
+	echo " -h, --help      | Show this help message"
+	echo ""
+	echo " Files can also be provided as positional arguments"
+}
+
+while [[ $# -gt 0 ]]; do
+	case $1 in
+		-f|--file)
+			if [[ -n $2 && $2 != -* ]]; then
+				input_file=$2
+				shift 2
+			else
+				echo "ERROR: -f/--file requires a file argument" >&2
+				exit 1
+			fi
+			;;
+		--file=*)
+			input_file="${1#*=}"
+			shift
+			;;
+		-v|--verbose)
+			verbose=true
+			shift
+			;;
+		-h|--help)
+			show_help=true
+			shift
+			;;
+		-*)
+			echo "ERROR: Unknown option $1" >&2
+			show-help
+			exit 1
+			;;
+		*)
+			if [[ -z $input_file ]]; then
+				input_file=$1
+				shift
+			else
+				echo "ERROR: Multiple files specified. Use only one file." >&2
+				exit 1
+			fi
+			;;
+	esac
+done
+
+#show help if requested
+if [[ $show_help == true ]]; then
+	show-help
+	exit 0
+fi
+
+#check if required file argument is provided
+if [[ -z $input_file ]]; then
+	echo "ERROR: Input file is required. Specify with -f/--file or as a positional argument" >&2
+	exit 1
+fi
+
+#check if file exists
+if [[ ! -f $input_file ]]; then
+	echo "ERROR: File '$input_file' does not exist" >&2
+	exit 1
+fi
+
+#check if file is a .asm
+if [[ $input_file != *.vm ]]; then
+	echo "ERROR: File must have .vm extension" >&2
+	exit 1
+fi
+
+#verbose echo
+ve() {
+	if [[ $verbose == true ]];then
+		echo "$@" >&2
+		#sleep 0.1 #artificial pause
+	fi
+}
+
+#create output file name (.asm)
+output_file="${input_file%.vm}.asm"
+
+#======================================
+#Parser Module
+#Handles Parsing of VM Commands
+#Routines from CH7 pg. 140
+#======================================
+
+#Parser state
+parser_lines=()
+parser_current_line=""
+parser_line_index=0
+parser_total_lines=0
+
+#init parser with input file
+parser_init() {
+	local file=$1
+	parser_line_index=0
+	parser_lines=()
+
+	ve "Parser: Loading file $file"
+
+	#read and clean
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		#remove comments and trim whitespace
+		line=$(echo "$line" | sed 's|//.*$||' | xargs)
+		#only keep non-empty lines
+		if [[ -n "$line" ]]; then
+			parser_lines+=("$line")
+		fi
+	done < "$file"
+
+	parser_total_lines=${#parser_lines[@]}
+	ve "Parser: Loaded ${parser_total_lines} valid commands"
+}
+
+parser_has_more_commands() {
+	[[ $parser_line_index -lt $parser_total_lines ]]
+}
+
+#advance to next command
+parser_advance() {
+	if parser_has_more_commands; then
+		parser_current_line="$parser_lines[$parser_line_index]}"
+		((parser_line_index++))
+		ve "Parser: Processing line $parser_line_index: $parser_current_line"
+	fi
+}
+
+#get commands type
+parser_command_type() {
+	local cmd=$(echo "$parser_current_line" | awk '{print $1}')
+	case $cmd in
+		"add"|"sub"|"neg"|"eq"|"lt"|"and"|"or"|"not")
+			echo "C_ARTIHMETIC"
+			;;
+		"push")
+			echo "C_PUSH"
+			;;
+		"pop")
+			echo "C_POP"
+			;;
+		*)
+			echo "C_UNKNOWN"
+			;;
+	esac
+}
+
+#get first argument
+parser_arg1() {
+	local cmd_type=$(parser_command_type)
+	case $cmd_type in
+		"C_ARITHMETIC")
+			echo "$parser_current_line" | awk '{print $1}'
+			;;
+		"C_PUSH"|"C_POP")
+			echo "$parser_current_line" | awk '{print $2}'
+			;;
+	esac
+}
+
+#get second argument
+parser_arg2() {
+	local cmd_type=$(parser_command_type)
+	case $cmd_type in
+		"C_PUSH"|"C_POP")
+			echo "$parser_current_line" | awk '{print $3}'
+			;;
+	esac
+}
+
+
+#======================================
+#Code Writer Module
+#Translates VM commands into Hack Assembly#
+#Routines from CH7 pg. 141
+#======================================
+
+#code writer state
+cw_output_file=""
+cw_filename=""
+cw_label_counter=0
+
+#init code writer
+codewriter_init() {
+	local output=$1
+	cw_output_file=$output
+	cw_filename=$(basename "${input_file%.vm}")
+	cw_label_counter=0
+
+	#clear output file
+	> "$cw_output_file"
+	ve "CodeWriter: Initialized with output $cw_output_file"
+}
+
+#set filename for static variables
+codewriter_set_filename() {
+	local filename=$1
+	cw_filename=$(basename "${filename%.vm}")
+	ve "CodeWriter: Set filename to $cw_filename"
+}
+
+#generate unique label 
+next_label() {
+	local prefix=$1
+	((cw_label_counter++))
+	echo "${prefix}_${cw_label_counter}"
+}
+
+#write arithmetic commands
+codewriter_write_arithmetic() {
+	local command=$1
+
+	ve "CodeWriter: Translating arithmetic '$command'"
+	echo "// $command" >> "$cw_output_file"
+
+	case $command in
+		"add")
+			cat >> "$cw_output_file" << 'EOF'
+@SP
+AM=M-1
+D=M
+@SP
+A=M-1
+M=M+D
+EOF
+			;;
+		"sub")
+			cat >> "$cw_output_file" << 'EOF'
+@SP
+AM=M-1
+D=M
+@SP
+A=M-1
+M=M-D
+EOF
+			;;
+		"neg")
+			cat >> "$cw_output_file" << 'EOF'
+@SP
+A=M-1
+M=-M
+EOF
+			;;
+		"and")
+			cat >> "$cw_output_file" << 'EOF'
+@SP
+AM=M-1
+D=M
+@SP
+A=M-1
+M=M&D
+EOF
+			;;
+		"or")
+			cat >> "$cw_output_file" << 'EOF'
+@SP
+AM=M-1
+D=M
+@SP
+A=M-1
+M=M|D
+EOF
+			;;
+		"not")
+			cat >> "$cw_output_file" << 'EOF'
+@SP
+A=M-1
+M=!M
+EOF
+			;;
+		"eq")
+			write_comparison "JEQ"
+			;;
+		"gt")
+			write_comparison "JGT"
+			;;
+		"lt")
+			write_comparison "JLT"
+			;;
+	esac
+	
+	echo "" >> "$cw_output_file"
+}
+
+#write comparison operations
+write_comparison() {
+	local jump_type=$1
+	local true_label=$(next_label "TRUE")
+	local end_label=$(next_label "END")
+
+	cat >> "$cw_output_file" << EOF
+@SP
+AM=M-1
+D=M
+@SP
+A=M-1
+D=M-D
+@${true_label}
+D;${jump_type}
+@SP
+A=M-1
+M=0
+@${end_label}
+0;JMP
+(${true_label})
+@SP
+A=M-1
+M=-1
+(${end_label})
+EOF
+}
+
+#write push commands
+codewriter_write_push() {
+	local segment=$1
+	local index=$2
+	
+	ve "CodeWriter: Translating push $segment $index"
+	echo "// push $segment $index" >> "$cw_output_file"
+	
+	case $segment in
+		"constant")
+			cat >> "$cw_output_file" << EOF
+@${index}
+D=A
+@SP
+A=M
+M=D
+@SP
+M=M+1
+EOF
+			;;
+		"local")
+			write_push_segment "LCL" $index
+			;;
+		"argument")
+			write_push_segment "ARG" $index
+			;;
+		"this")
+			write_push_segment "THIS" $index
+			;;
+		"that")
+			write_push_segment "THAT" $index
+			;;
+		"temp")
+			cat >> "$cw_output_file" << EOF
+@$((5 + index))
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+EOF
+			;;
+		"static")
+			cat >> "$cw_output_file" << EOF
+@${cw_filename}.${index}
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+EOF
+			;;
+		"pointer")
+			if [[ $index -eq 0 ]]; then
+				cat >> "$cw_output_file" << 'EOF'
+@THIS
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+EOF
+			else
+				cat >> "$cw_output_file" << 'EOF'
+@THAT
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+EOF
+			fi
+			;;
+	esac
+	
+	echo "" >> "$cw_output_file"
+}
+
+# Helper for push from memory segments
+write_push_segment() {
+	local segment=$1
+	local index=$2
+	
+	cat >> "$cw_output_file" << EOF
+@${segment}
+D=M
+@${index}
+A=D+A
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+EOF
+}
+
+# Write pop commands
+codewriter_write_pop() {
+	local segment=$1
+	local index=$2
+	
+	ve "CodeWriter: Translating pop $segment $index"
+	echo "// pop $segment $index" >> "$cw_output_file"
+	
+	case $segment in
+		"local")
+			write_pop_segment "LCL" $index
+			;;
+		"argument")
+			write_pop_segment "ARG" $index
+			;;
+		"this")
+			write_pop_segment "THIS" $index
+			;;
+		"that")
+			write_pop_segment "THAT" $index
+			;;
+		"temp")
+			cat >> "$cw_output_file" << EOF
+@SP
+AM=M-1
+D=M
+@$((5 + index))
+M=D
+EOF
+			;;
+		"static")
+			cat >> "$cw_output_file" << EOF
+@SP
+AM=M-1
+D=M
+@${cw_filename}.${index}
+M=D
+EOF
+			;;
+		"pointer")
+			if [[ $index -eq 0 ]]; then
+				cat >> "$cw_output_file" << 'EOF'
+@SP
+AM=M-1
+D=M
+@THIS
+M=D
+EOF
+			else
+				cat >> "$cw_output_file" << 'EOF'
+@SP
+AM=M-1
+D=M
+@THAT
+M=D
+EOF
+			fi
+			;;
+	esac
+	
+	echo "" >> "$cw_output_file"
+}
+
+# Helper for pop to memory segments
+write_pop_segment() {
+	local segment=$1
+	local index=$2
+	
+	cat >> "$cw_output_file" << EOF
+@${segment}
+D=M
+@${index}
+D=D+A
+@R13
+M=D
+@SP
+AM=M-1
+D=M
+@R13
+A=M
+M=D
+EOF
+}
+
+#======================================
+#Main Translation Logic
+#======================================
+
+translate() {
+	ve "Starting translation: $input_file --> $output_file"
+
+	#init modules
+	parser_init "$input_file"
+	codewriter_init "$output_file"
+	codewriter_set_filename "$input_file"
+
+	#process all commands
+	while parser_has_more_commands; do
+		parser_advance 
+
+		local cmd_type=$(parser_command_type)
+
+		case $cmd_type in
+			"C_ARITHMETIC")
+				local operator=$(parser_arg1)
+				codewriter_write_arithmetic "$operator"
+				;;
+			"C_PUSH")
+				local segment=$(parser_arg1)
+				local index=$(parser_arg2)
+				codewriter_write_push "$segment" "$index"
+				;;
+			"C_POP")
+				local segment=$(parser_arg1)
+				local index=$(parser_arg2)
+				codewriter_write_push "$segment" "$index"
+				;;
+			*)
+				echo "ERROR: Unknown command type at line $parser_line_index: $parser_current_line" >&2
+				exit 1
+				;;
+		esac
+	done
+
+	ve "Translation Complete!"
+}
+
+#main execution
+ve "VM Translator starting... "
+translate
+echo "Successfully translated $input_file to $output_file"
