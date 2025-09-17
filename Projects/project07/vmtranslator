@@ -134,7 +134,7 @@ parser_has_more_commands() {
 #advance to next command
 parser_advance() {
 	if parser_has_more_commands; then
-		parser_current_line="$parser_lines[$parser_line_index]}"
+		parser_current_line="${parser_lines[$parser_line_index]}"
 		((parser_line_index++))
 		ve "Parser: Processing line $parser_line_index: $parser_current_line"
 	fi
@@ -143,9 +143,10 @@ parser_advance() {
 #get commands type
 parser_command_type() {
 	local cmd=$(echo "$parser_current_line" | awk '{print $1}')
+
 	case $cmd in
-		"add"|"sub"|"neg"|"eq"|"lt"|"and"|"or"|"not")
-			echo "C_ARTIHMETIC"
+		"add"|"sub"|"neg"|"eq"|"gt"|"lt"|"and"|"or"|"not")
+			echo "C_ARITHMETIC"
 			;;
 		"push")
 			echo "C_PUSH"
@@ -185,7 +186,7 @@ parser_arg2() {
 
 #======================================
 #Code Writer Module
-#Translates VM commands into Hack Assembly#
+#Translates VM commands into Hack Assembly
 #Routines from CH7 pg. 141
 #======================================
 
@@ -217,7 +218,7 @@ codewriter_set_filename() {
 next_label() {
 	local prefix=$1
 	((cw_label_counter++))
-	echo "${prefix}_${cw_label_counter}"
+	next_label_result="${prefix}_${cw_label_counter}"
 }
 
 #write arithmetic commands
@@ -299,8 +300,12 @@ EOF
 #write comparison operations
 write_comparison() {
 	local jump_type=$1
-	local true_label=$(next_label "TRUE")
-	local end_label=$(next_label "END")
+	
+	next_label "TRUE"
+	local true_label="$next_label_result"
+	
+	next_label "END"  
+	local end_label="$next_label_result"
 
 	cat >> "$cw_output_file" << EOF
 @SP
@@ -540,7 +545,7 @@ translate() {
 			"C_POP")
 				local segment=$(parser_arg1)
 				local index=$(parser_arg2)
-				codewriter_write_push "$segment" "$index"
+				codewriter_write_pop "$segment" "$index"  # ← Fixed: was calling write_push
 				;;
 			*)
 				echo "ERROR: Unknown command type at line $parser_line_index: $parser_current_line" >&2
