@@ -16,7 +16,7 @@ M=D
 @SP
 M=M+1
 
-// eq
+//eq
 @SP
 AM=M-1
 D=M
@@ -54,7 +54,7 @@ M=D
 @SP
 M=M+1
 
-// eq
+//eq
 @SP
 AM=M-1
 D=M
@@ -92,7 +92,7 @@ M=D
 @SP
 M=M+1
 
-// eq
+//eq
 @SP
 AM=M-1
 D=M
@@ -130,7 +130,7 @@ M=D
 @SP
 M=M+1
 
-// lt
+//lt
 @SP
 AM=M-1
 D=M
@@ -168,7 +168,7 @@ M=D
 @SP
 M=M+1
 
-// lt
+//lt
 @SP
 AM=M-1
 D=M
@@ -206,7 +206,7 @@ M=D
 @SP
 M=M+1
 
-// lt
+//lt
 @SP
 AM=M-1
 D=M
@@ -244,7 +244,7 @@ M=D
 @SP
 M=M+1
 
-// gt
+//gt
 @SP
 AM=M-1
 D=M
@@ -282,7 +282,7 @@ M=D
 @SP
 M=M+1
 
-// gt
+//gt
 @SP
 AM=M-1
 D=M
@@ -320,7 +320,7 @@ M=D
 @SP
 M=M+1
 
-// gt
+//gt
 @SP
 AM=M-1
 D=M
@@ -367,7 +367,7 @@ M=D
 @SP
 M=M+1
 
-// add
+//add
 @SP
 AM=M-1
 D=M
@@ -384,7 +384,7 @@ M=D
 @SP
 M=M+1
 
-// sub
+//sub
 @SP
 AM=M-1
 D=M
@@ -392,12 +392,12 @@ D=M
 A=M-1
 M=M-D
 
-// neg
+//neg
 @SP
 A=M-1
 M=-M
 
-// and
+//and
 @SP
 AM=M-1
 D=M
@@ -414,7 +414,7 @@ M=D
 @SP
 M=M+1
 
-// or
+//or
 @SP
 AM=M-1
 D=M
@@ -422,7 +422,7 @@ D=M
 A=M-1
 M=M|D
 
-// not
+//not
 @SP
 A=M-1
 M=!M

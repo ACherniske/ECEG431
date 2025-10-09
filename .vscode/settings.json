@@ -8,6 +8,9 @@
         "string": "cpp",
         "ios": "cpp",
         "type_traits": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "filesystem": "cpp",
+        "iosfwd": "cpp",
+        "stdexcept": "cpp"
     }
 }

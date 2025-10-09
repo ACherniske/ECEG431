@@ -1,0 +1,100 @@
+#include "vmparser.h"
+#include <iostream>
+#include <sstream>
+#include <algorithm>
+#include <cctype>
+
+Parser::Parser(const std::string& filename): currentLine(0) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open file: " + filename);
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        line = trim(removeComments(line));
+        if (!line.empty()) {
+            lines.push_back(line);
+        }
+    }
+    file.close();
+}
+
+std::string Parser::trim(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) return "";
+
+    size_t last = str.find_last_not_of(" \t\r\n");
+    return str.substr(first, last - first + 1);
+}
+
+std::string Parser::removeComments(const std::string& line) {
+    size_t commentPos = line.find("//");
+    if (commentPos != std::string::npos) {
+        return line.substr(0, commentPos);
+    }
+    return line;
+}
+
+bool Parser::hasMoreCommands() {
+    return currentLine < lines.size();
+}
+
+void Parser::advance() {
+    if (hasMoreCommands()) {
+        currentCommand = lines[currentLine++];
+    } else {
+        throw std::runtime_error("No more commands to advance to.");
+    }
+}
+
+CommandType Parser::commandType() {
+    std::istringstream iss(currentCommand);
+    std:: string cmd;
+    iss >> cmd;
+
+    if (cmd == "add" || cmd == "sub" || cmd == "neg" ||
+        cmd == "eq" || cmd == "gt" || cmd == "lt" ||
+        cmd == "and" || cmd == "or" || cmd == "not") {
+        return CommandType::C_ARITHMETIC;
+    } else if (cmd == "push") {
+        return CommandType::C_PUSH;
+    } else if (cmd == "pop") {
+        return CommandType::C_POP;
+    }
+    return CommandType::C_UNKNOWN;
+}
+
+std::string Parser::arg1() {
+    CommandType type = commandType ();
+
+    std::istringstream iss(currentCommand);
+    std::string first, second;
+    iss >> first >> second;
+
+    if (type == CommandType::C_ARITHMETIC) {
+        return first;
+    } else if (type == CommandType::C_PUSH || type == CommandType::C_POP) {
+        return second;
+    }
+
+    return "";
+}
+
+int Parser::arg2() {
+    CommandType type = commandType();
+
+    if (type == CommandType::C_PUSH || type == CommandType::C_POP) {
+        std::istringstream iss(currentCommand);
+        std::string first, second, third;
+        iss >> first >> second >> third;
+        return std::stoi(third);
+    }
+
+    return -1;
+}
+
+void Parser::reset() {
+    currentLine = 0;
+    currentCommand.clear();
+}

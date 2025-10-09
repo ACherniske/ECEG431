@@ -334,8 +334,8 @@ codewriter_write_push() {
 	local segment=$1
 	local index=$2
 	
-	ve "CodeWriter: Translating push $segment $index"
-	echo "// push $segment $index" >> "$cw_output_file"
+	ve "CodeWriter: Translating push $segment ${index}"
+	echo "// push $segment ${index}" >> "$cw_output_file"
 	
 	case $segment in
 		"constant")
@@ -434,9 +434,9 @@ EOF
 codewriter_write_pop() {
 	local segment=$1
 	local index=$2
-	
-	ve "CodeWriter: Translating pop $segment $index"
-	echo "// pop $segment $index" >> "$cw_output_file"
+
+	ve "CodeWriter: Translating pop $segment ${index}"
+	echo "// pop $segment ${index}" >> "$cw_output_file"
 	
 	case $segment in
 		"local")
@@ -545,7 +545,7 @@ translate() {
 			"C_POP")
 				local segment=$(parser_arg1)
 				local index=$(parser_arg2)
-				codewriter_write_pop "$segment" "$index"  # ← Fixed: was calling write_push
+				codewriter_write_pop "$segment" "$index"
 				;;
 			*)
 				echo "ERROR: Unknown command type at line $parser_line_index: $parser_current_line" >&2
