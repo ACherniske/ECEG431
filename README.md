@@ -1,5 +1,5 @@
 [![Course](https://img.shields.io/badge/Course-nand2tetris-critical)](https://www.nand2tetris.org/)
-![Progress](https://img.shields.io/static/v1?label=Completion&message=58.33%&color=orange)
+![Progress](https://img.shields.io/static/v1?label=Completion&message=66.67%&color=orange)
 [![Last Commit](https://img.shields.io/github/last-commit/ACherniske/ECEG431)](https://github.com/ACherniske/ECEG431)
 [![github-lang-cout](https://img.shields.io/github/languages/count/ACherniske/ECEG431?style=social&logo=github)](https://github.com/ACherniske/ECEG431)
 [![github-top-lang](https://img.shields.io/github/languages/top/ACherniske/ECEG431?style=social&logo=github)](https://github.com/ACherniske/ECEG431)
