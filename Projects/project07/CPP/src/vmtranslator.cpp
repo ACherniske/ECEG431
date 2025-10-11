@@ -1,4 +1,4 @@
-#include "vmtranslator.h"
+#include "vm7translator.h"
 #include <iostream>
 
 VMTranslator::VMTranslator(const std::string& inputFile, const std::string& outputFile, bool verbose)

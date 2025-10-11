@@ -1,4 +1,4 @@
-#include "vm7parser.h"
+#include "vmparser.h"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -48,9 +48,10 @@ void Parser::advance() {
     }
 }
 
+//add new command types
 CommandType Parser::commandType() {
     std::istringstream iss(currentCommand);
-    std:: string cmd;
+    std::string cmd;
     iss >> cmd;
 
     if (cmd == "add" || cmd == "sub" || cmd == "neg" ||
@@ -61,20 +62,36 @@ CommandType Parser::commandType() {
         return CommandType::C_PUSH;
     } else if (cmd == "pop") {
         return CommandType::C_POP;
+    } else if (cmd == "label") {
+        return CommandType::C_LABEL;
+    } else if (cmd == "goto") {
+        return CommandType::C_GOTO;
+    } else if (cmd == "if-goto") {
+        return CommandType::C_IF;
+    } else if (cmd == "function") {
+        return CommandType::C_FUNCTION;
+    } else if (cmd == "call") {
+        return CommandType::C_CALL;
+    } else if (cmd == "return") {
+        return CommandType::C_RETURN;
     }
     return CommandType::C_UNKNOWN;
 }
 
 std::string Parser::arg1() {
-    CommandType type = commandType ();
+    CommandType type = commandType();
 
     std::istringstream iss(currentCommand);
     std::string first, second;
     iss >> first >> second;
 
+    //add new command types
     if (type == CommandType::C_ARITHMETIC) {
         return first;
-    } else if (type == CommandType::C_PUSH || type == CommandType::C_POP) {
+    } else if (type == CommandType::C_PUSH || type == CommandType::C_POP ||
+               type == CommandType::C_LABEL || type == CommandType::C_GOTO ||
+               type == CommandType::C_IF || type == CommandType::C_FUNCTION ||
+               type == CommandType::C_CALL) {
         return second;
     }
 
@@ -84,7 +101,9 @@ std::string Parser::arg1() {
 int Parser::arg2() {
     CommandType type = commandType();
 
-    if (type == CommandType::C_PUSH || type == CommandType::C_POP) {
+    //add new command types
+    if (type == CommandType::C_PUSH || type == CommandType::C_POP ||
+        type == CommandType::C_FUNCTION || type == CommandType::C_CALL) {
         std::istringstream iss(currentCommand);
         std::string first, second, third;
         iss >> first >> second >> third;

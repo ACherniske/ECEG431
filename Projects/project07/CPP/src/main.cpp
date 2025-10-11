@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 #include <filesystem>
-#include "vmtranslator.h"
+#include "vm7translator.h"
 
 void showHelp(const char* programName) {
     std::cout << std::endl;
@@ -37,6 +37,9 @@ int main(int argc, char* argv[]) {
             verbose = true;
         } else if (arg == "-h" || arg == "--help") {
             showHelpFlag = true;
+        } else if (arg == "-n" || arg == "-y") {
+            // Ignore -n and -y options for compatibility
+            continue;
         } else if (arg[0] == '-') {
             std::cerr << "ERROR: Unknown option " << arg << std::endl;
             showHelp(argv[0]);
@@ -68,11 +71,15 @@ int main(int argc, char* argv[]) {
         std::cerr << "ERROR: File '" << inputFile << "' does not exist" << std::endl;
         return 1;
     }
-    
-    // Check if file is a .vm
-    if (inputFile.substr(inputFile.find_last_of('.') + 1) != "vm") {
-        std::cerr << "ERROR: File must have .vm extension" << std::endl;
-        return 1;
+
+    // Check for directory input and select the vm file inside
+    if (std::filesystem::is_directory(inputFile)) {
+        for (const auto& entry : std::filesystem::directory_iterator(inputFile)) {
+            if (entry.path().extension() == ".vm") {
+                inputFile = entry.path().string();
+                break;
+            }
+        }
     }
     
     // Create output file name (.asm)

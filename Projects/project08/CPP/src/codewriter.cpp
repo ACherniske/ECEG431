@@ -1,8 +1,9 @@
-#include "vm7codewriter.h"
+#include "codewriter.h"
 #include <stdexcept>
 #include <iostream>
 
-CodeWriter::CodeWriter(const std::string& outputFileName) :labelCounter(0) {
+CodeWriter::CodeWriter(const std::string& outputFileName) 
+    : labelCounter(0), callCounter(0), currentFunction("") {
     outputFile.open(outputFileName);
     if (!outputFile.is_open()) {
         throw std::runtime_error("Could not open output file: " + outputFileName);
@@ -230,6 +231,196 @@ void CodeWriter::writePopSegment(const std::string& segment, int index) {
                << "@R13\n"
                << "A=M\n"
                << "M=D\n";
+}
+
+//chapter 8 methods
+
+void CodeWriter::writeInit() {
+    outputFile << "// Bootstrap code\n"
+               << "@256\n"
+               << "D=A\n"
+               << "@SP\n"
+               << "M=D\n";
+    
+    writeCall("Sys.init", 0);
+}
+
+void CodeWriter::writeLabel(const std::string& label) {
+    outputFile << "// label " << label << std::endl;
+    outputFile << "(" << currentFunction << "$" << label << ")\n";
+    outputFile << std::endl;
+}
+
+void CodeWriter::writeGoto(const std::string& label) {
+    outputFile << "// goto " << label << std::endl;
+    outputFile << "@" << currentFunction << "$" << label << "\n"
+               << "0;JMP\n";
+    outputFile << std::endl;
+}
+
+void CodeWriter::writeIf(const std::string& label) {
+    outputFile << "// if-goto " << label << std::endl;
+    outputFile << "@SP\n"
+               << "AM=M-1\n"
+               << "D=M\n"
+               << "@" << currentFunction << "$" << label << "\n"
+               << "D;JNE\n";
+    outputFile << std::endl;
+}
+
+void CodeWriter::writeCall(const std::string& functionName, int numArgs) {
+    std::string returnLabel = "RETURN_" + std::to_string(++callCounter);
+    
+    outputFile << "// call " << functionName << " " << numArgs << std::endl;
+    
+    // Push return address
+    outputFile << "@" << returnLabel << "\n"
+               << "D=A\n"
+               << "@SP\n"
+               << "A=M\n"
+               << "M=D\n"
+               << "@SP\n"
+               << "M=M+1\n";
+    
+    // Push LCL
+    outputFile << "@LCL\n"
+               << "D=M\n"
+               << "@SP\n"
+               << "A=M\n"
+               << "M=D\n"
+               << "@SP\n"
+               << "M=M+1\n";
+    
+    // Push ARG
+    outputFile << "@ARG\n"
+               << "D=M\n"
+               << "@SP\n"
+               << "A=M\n"
+               << "M=D\n"
+               << "@SP\n"
+               << "M=M+1\n";
+    
+    // Push THIS
+    outputFile << "@THIS\n"
+               << "D=M\n"
+               << "@SP\n"
+               << "A=M\n"
+               << "M=D\n"
+               << "@SP\n"
+               << "M=M+1\n";
+    
+    // Push THAT
+    outputFile << "@THAT\n"
+               << "D=M\n"
+               << "@SP\n"
+               << "A=M\n"
+               << "M=D\n"
+               << "@SP\n"
+               << "M=M+1\n";
+    
+    // ARG = SP - n - 5
+    outputFile << "@SP\n"
+               << "D=M\n"
+               << "@" << (numArgs + 5) << "\n"
+               << "D=D-A\n"
+               << "@ARG\n"
+               << "M=D\n";
+    
+    // LCL = SP
+    outputFile << "@SP\n"
+               << "D=M\n"
+               << "@LCL\n"
+               << "M=D\n";
+    
+    // goto functionName
+    outputFile << "@" << functionName << "\n"
+               << "0;JMP\n";
+    
+    // (return address)
+    outputFile << "(" << returnLabel << ")\n";
+    outputFile << std::endl;
+}
+
+void CodeWriter::writeReturn() {
+    outputFile << "// return\n";
+    
+    // FRAME = LCL (using R13 as FRAME)
+    outputFile << "@LCL\n"
+               << "D=M\n"
+               << "@R13\n"
+               << "M=D\n";
+    
+    // RET = *(FRAME-5) (using R14 as RET)
+    outputFile << "@5\n"
+               << "A=D-A\n"
+               << "D=M\n"
+               << "@R14\n"
+               << "M=D\n";
+    
+    // *ARG = pop()
+    outputFile << "@SP\n"
+               << "AM=M-1\n"
+               << "D=M\n"
+               << "@ARG\n"
+               << "A=M\n"
+               << "M=D\n";
+    
+    // SP = ARG + 1
+    outputFile << "@ARG\n"
+               << "D=M+1\n"
+               << "@SP\n"
+               << "M=D\n";
+    
+    // THAT = *(FRAME-1)
+    outputFile << "@R13\n"
+               << "AM=M-1\n"
+               << "D=M\n"
+               << "@THAT\n"
+               << "M=D\n";
+    
+    // THIS = *(FRAME-2)
+    outputFile << "@R13\n"
+               << "AM=M-1\n"
+               << "D=M\n"
+               << "@THIS\n"
+               << "M=D\n";
+    
+    // ARG = *(FRAME-3)
+    outputFile << "@R13\n"
+               << "AM=M-1\n"
+               << "D=M\n"
+               << "@ARG\n"
+               << "M=D\n";
+    
+    // LCL = *(FRAME-4)
+    outputFile << "@R13\n"
+               << "AM=M-1\n"
+               << "D=M\n"
+               << "@LCL\n"
+               << "M=D\n";
+    
+    // goto RET
+    outputFile << "@R14\n"
+               << "A=M\n"
+               << "0;JMP\n";
+    outputFile << std::endl;
+}
+
+void CodeWriter::writeFunction(const std::string& functionName, int numLocals) {
+    currentFunction = functionName;
+    
+    outputFile << "// function " << functionName << " " << numLocals << std::endl;
+    outputFile << "(" << functionName << ")\n";
+    
+    //initialize local variables to 0
+    for (int i = 0; i < numLocals; i++) {
+        outputFile << "@SP\n"
+                   << "A=M\n"
+                   << "M=0\n"
+                   << "@SP\n"
+                   << "M=M+1\n";
+    }
+    outputFile << std::endl;
 }
 
 void CodeWriter::close() {
