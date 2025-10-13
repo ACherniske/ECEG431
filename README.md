@@ -63,6 +63,12 @@ This course follows the acclaimed **Nand2Tetris** methodology, providing a compl
 - Translate symbolic assembly code to binary machine language
 - Learn about symbol tables and memory allocation
 
+**Learning Points**
+- BASH Scripting
+- VIM Editor
+- C++ Filestructure and Best Practices
+- Fileparsing
+
 ---
 
 ## Part II: Software Stack
@@ -74,11 +80,22 @@ This course follows the acclaimed **Nand2Tetris** methodology, providing a compl
 - Handle memory segment operations
 - Bridge the gap between high-level languages and assembly
 
+**Learning Points**
+- BASH Scripting
+- VIM Editor
+- C++ Filestructure and Best Practices
+- Fileparsing
+
 ### Project 8: Virtual Machine II - Program Flow
 **Advanced VM Implementation**
 - Add support for branching and function calls
 - Implement program flow control
 - Handle complex program structures
+
+**Learning Points**
+- C++ Filestructure and Best Practices
+- Bootstrapping
+- Directory Scanning
 
 ### Project 9: High-Level Language Design
 **Object-Oriented Programming**
