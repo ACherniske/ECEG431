@@ -6,38 +6,33 @@
 
 Parser::Parser(const std::string& filename): currentLine(0) {
     std::ifstream file(filename);
-    if (!file.is_open()) {
-        throw std::runtime_error("Could not open file: " + filename);
-    }
+    if (!file.is_open()) throw std::runtime_error("Could not open file: " + filename);
 
     std::string line;
     while (std::getline(file, line)) {
         line = trim(removeComments(line));
-        if (!line.empty()) {
-            lines.push_back(line);
-        }
+        if (!line.empty()) lines.push_back(std::move(line));
     }
-    file.close();
 }
 
 std::string Parser::trim(const std::string& str) {
     size_t first = str.find_first_not_of(" \t\r\n");
-    if (first == std::string::npos) return "";
+    if (first == std::string::npos) return ""; //if string is all whitespace return empty string
 
     size_t last = str.find_last_not_of(" \t\r\n");
-    return str.substr(first, last - first + 1);
+    return str.substr(first, last - first + 1); //trimmed string
 }
 
 std::string Parser::removeComments(const std::string& line) {
     size_t commentPos = line.find("//");
-    if (commentPos != std::string::npos) {
-        return line.substr(0, commentPos);
+    if (commentPos != std::string::npos) { //found comment
+        return line.substr(0, commentPos); //return part before comment
     }
     return line;
 }
 
 bool Parser::hasMoreCommands() {
-    return currentLine < lines.size();
+    return currentLine < lines.size(); //true if there are more commands to process
 }
 
 void Parser::advance() {
@@ -51,7 +46,7 @@ void Parser::advance() {
 CommandType Parser::commandType() {
     std::istringstream iss(currentCommand);
     std:: string cmd;
-    iss >> cmd;
+    iss >> cmd; //get first word of command
 
     if (cmd == "add" || cmd == "sub" || cmd == "neg" ||
         cmd == "eq" || cmd == "gt" || cmd == "lt" ||
@@ -72,9 +67,9 @@ std::string Parser::arg1() {
     std::string first, second;
     iss >> first >> second;
 
-    if (type == CommandType::C_ARITHMETIC) {
+    if (type == CommandType::C_ARITHMETIC) { //for arithmetic commands, arg1 is the command itself
         return first;
-    } else if (type == CommandType::C_PUSH || type == CommandType::C_POP) {
+    } else if (type == CommandType::C_PUSH || type == CommandType::C_POP) { //for push/pop, arg1 is the segment ex. "local", "argument", etc.
         return second;
     }
 
@@ -84,11 +79,11 @@ std::string Parser::arg1() {
 int Parser::arg2() {
     CommandType type = commandType();
 
-    if (type == CommandType::C_PUSH || type == CommandType::C_POP) {
+    if (type == CommandType::C_PUSH || type == CommandType::C_POP) { //arg2 is the index for push/pop commands
         std::istringstream iss(currentCommand);
         std::string first, second, third;
-        iss >> first >> second >> third;
-        return std::stoi(third);
+        iss >> first >> second >> third; //ex. "push local 2", "pop constant 10", etc.
+        return std::stoi(third); 
     }
 
     return -1;

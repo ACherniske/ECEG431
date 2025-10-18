@@ -15,7 +15,7 @@ void showHelp(const char* programName) {
     std::cout << " Files can also be provided as positional arguments" << std::endl;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc,const char* const argv[]) { // argc is number of command line arguments
     bool verbose = false;
     bool showHelpFlag = false;
     std::string inputFile;
@@ -83,13 +83,9 @@ int main(int argc, char* argv[]) {
     }
     
     // Create output file name (.asm)
-    std::string outputFile = inputFile;
-    size_t lastDot = outputFile.find_last_of('.');
-    if (lastDot != std::string::npos) {
-        outputFile = outputFile.substr(0, lastDot) + ".asm";
-    } else {
-        outputFile += ".asm";
-    }
+
+    std::filesystem::path p(inputFile);
+    std::string outputFile = p.replace_extension(".asm").string();
     
     if (verbose) {
         std::cerr << "Translating " << inputFile << " --> " << outputFile << std::endl;

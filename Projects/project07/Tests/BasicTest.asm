@@ -1,5 +1,5 @@
-// push constant 10[0]}
-@10[0]}
+// push constant 10
+@10
 D=A
 @SP
 A=M
@@ -7,8 +7,22 @@ M=D
 @SP
 M=M+1
 
-// push constant 10[1]}
-@10[1]}
+// pop local 0
+@LCL
+D=M
+@0
+D=D+A
+@R13
+M=D
+@SP
+AM=M-1
+D=M
+@R13
+A=M
+M=D
+
+// push constant 21
+@21
 D=A
 @SP
 A=M
@@ -16,8 +30,8 @@ M=D
 @SP
 M=M+1
 
-// push constant 10[2]}
-@10[2]}
+// push constant 22
+@22
 D=A
 @SP
 A=M
@@ -25,8 +39,36 @@ M=D
 @SP
 M=M+1
 
-// push constant 10[3]}
-@10[3]}
+// pop argument 2
+@ARG
+D=M
+@2
+D=D+A
+@R13
+M=D
+@SP
+AM=M-1
+D=M
+@R13
+A=M
+M=D
+
+// pop argument 1
+@ARG
+D=M
+@1
+D=D+A
+@R13
+M=D
+@SP
+AM=M-1
+D=M
+@R13
+A=M
+M=D
+
+// push constant 36
+@36
 D=A
 @SP
 A=M
@@ -34,8 +76,22 @@ M=D
 @SP
 M=M+1
 
-// push constant 10[4]}
-@10[4]}
+// pop this 6
+@THIS
+D=M
+@6
+D=D+A
+@R13
+M=D
+@SP
+AM=M-1
+D=M
+@R13
+A=M
+M=D
+
+// push constant 42
+@42
 D=A
 @SP
 A=M
@@ -43,8 +99,8 @@ M=D
 @SP
 M=M+1
 
-// push constant 10[5]}
-@10[5]}
+// push constant 45
+@45
 D=A
 @SP
 A=M
@@ -52,8 +108,36 @@ M=D
 @SP
 M=M+1
 
-// push constant 10[6]}
-@10[6]}
+// pop that 5
+@THAT
+D=M
+@5
+D=D+A
+@R13
+M=D
+@SP
+AM=M-1
+D=M
+@R13
+A=M
+M=D
+
+// pop that 2
+@THAT
+D=M
+@2
+D=D+A
+@R13
+M=D
+@SP
+AM=M-1
+D=M
+@R13
+A=M
+M=D
+
+// push constant 510
+@510
 D=A
 @SP
 A=M
@@ -61,165 +145,119 @@ M=D
 @SP
 M=M+1
 
-// push constant 10[7]}
-@10[7]}
-D=A
+// pop temp 6
+@SP
+AM=M-1
+D=M
+@11
+M=D
+
+// push local 0
+@LCL
+D=M
+@0
+A=D+A
+D=M
 @SP
 A=M
 M=D
 @SP
 M=M+1
 
-// push constant 10[8]}
-@10[8]}
-D=A
+// push that 5
+@THAT
+D=M
+@5
+A=D+A
+D=M
 @SP
 A=M
 M=D
 @SP
 M=M+1
 
-// push constant 10[9]}
-@10[9]}
-D=A
+//add
+@SP
+AM=M-1
+D=M
+@SP
+A=M-1
+M=M+D
+
+// push argument 1
+@ARG
+D=M
+@1
+A=D+A
+D=M
 @SP
 A=M
 M=D
 @SP
 M=M+1
 
-// push constant 10[10]}
-@10[10]}
-D=A
+//sub
+@SP
+AM=M-1
+D=M
+@SP
+A=M-1
+M=M-D
+
+// push this 6
+@THIS
+D=M
+@6
+A=D+A
+D=M
 @SP
 A=M
 M=D
 @SP
 M=M+1
 
-// push constant 10[11]}
-@10[11]}
-D=A
+// push this 6
+@THIS
+D=M
+@6
+A=D+A
+D=M
 @SP
 A=M
 M=D
 @SP
 M=M+1
 
-// push constant 10[12]}
-@10[12]}
-D=A
+//add
+@SP
+AM=M-1
+D=M
+@SP
+A=M-1
+M=M+D
+
+//sub
+@SP
+AM=M-1
+D=M
+@SP
+A=M-1
+M=M-D
+
+// push temp 6
+@11
+D=M
 @SP
 A=M
 M=D
 @SP
 M=M+1
 
-// push constant 10[13]}
-@10[13]}
-D=A
+//add
 @SP
-A=M
-M=D
+AM=M-1
+D=M
 @SP
-M=M+1
-
-// push constant 10[14]}
-@10[14]}
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// push constant 10[15]}
-@10[15]}
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// push constant 10[16]}
-@10[16]}
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// push constant 10[17]}
-@10[17]}
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// push constant 10[18]}
-@10[18]}
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// push constant 10[19]}
-@10[19]}
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// push constant 10[20]}
-@10[20]}
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// push constant 10[21]}
-@10[21]}
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// push constant 10[22]}
-@10[22]}
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// push constant 10[23]}
-@10[23]}
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// push constant 10[24]}
-@10[24]}
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
+A=M-1
+M=M+D
 

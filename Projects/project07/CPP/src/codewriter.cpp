@@ -32,20 +32,24 @@ void CodeWriter::setFileName(const std::string& fileName) {
     }
 }
 
-std::string CodeWriter::generateLabel(const std::string& prefix) {
+std::string CodeWriter::generateLabel(const std::string& prefix) { //ex. TRUE_1, END_2, etc.
     return prefix + "_" + std::to_string(++labelCounter);
 }
 
 void CodeWriter::writeArithmetic(const std::string& command) {
+    /**
+     * Writes the assembly code for arithmetic commands.
+     * @param command The arithmetic command to translate (e.g., "add", "sub", "neg", "eq", "gt", "lt", "and", "or", "not").
+     */
     outputFile << "//" << command << std::endl;
 
     if (command == "add") {
-        outputFile << "@SP\n"
-                   << "AM=M-1\n"
-                   << "D=M\n"
+        outputFile << "@SP\n" 
+                   << "AM=M-1\n" //SP = SP - 1; A = SP
+                   << "D=M\n" 
                    << "@SP\n"
-                   << "A=M-1\n"
-                   << "M=M+D\n";
+                   << "A=M-1\n" //A = SP - 1
+                   << "M=M+D\n"; //* M[SP-1] = M[SP-1] + D */
     } else if (command == "sub") {
         outputFile << "@SP\n"
                    << "AM=M-1\n"
@@ -89,6 +93,10 @@ void CodeWriter::writeArithmetic(const std::string& command) {
 }
 
 void CodeWriter::writeComparison(const std::string& jumpType) {
+    /**
+     * Writes the assembly code for comparison commands (eq, gt, lt).
+     * @param jumpType The jump condition (JEQ, JGT, JLT).
+     */
     std::string labelTrue = generateLabel("TRUE");
     std::string labelEnd = generateLabel("END");
 
@@ -113,6 +121,13 @@ void CodeWriter::writeComparison(const std::string& jumpType) {
 }
 
 void CodeWriter::writePushPop(const std::string& command, const std::string& segment, int index) {
+    /**
+     * Writes the assembly code for push and pop commands.
+     * lines of form "push segment index" or "pop segment index".
+     * @param command The command type ("push" or "pop").
+     * @param segment The memory segment to operate on. ex. "local", "argument", "this", "that", "constant", "static", "temp", "pointer".
+     * @param index The index within the segment.
+     */
     if (command == "push") {
         outputFile << "// push " << segment << " " << index << std::endl;
 
@@ -205,6 +220,12 @@ void CodeWriter::writePushPop(const std::string& command, const std::string& seg
 }
 
 void CodeWriter::writePushSegment(const std::string& segment, int index) {
+    /**
+     * Writes the assembly code to push from a segment.
+     * lines of form "push segment index".
+     * @param segment The base segment pointer (LCL, ARG, THIS, THAT).
+     * @param index The index within the segment.
+     */
     outputFile << "@" << segment << "\n"
                << "D=M\n"
                << "@" << index << "\n"
@@ -218,6 +239,12 @@ void CodeWriter::writePushSegment(const std::string& segment, int index) {
 }
 
 void CodeWriter::writePopSegment(const std::string& segment, int index) {
+    /**
+     * Writes the assembly code to pop to a segment.
+     * lines of form "pop segment index".
+     * @param segment The base segment pointer (LCL, ARG, THIS, THAT).
+     * @param index The index within the segment.
+     */
     outputFile << "@" << segment << "\n"
                << "D=M\n"
                << "@" << index << "\n"

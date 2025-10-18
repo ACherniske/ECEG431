@@ -2,8 +2,8 @@
 #define VMTRANSLATOR_H
 
 #include <string>
-#include "vmparser.h"
-#include "codewriter.h"
+#include "vm7parser.h"
+#include "vm7codewriter.h"
 
 class VMTranslator {
     private:
@@ -14,7 +14,7 @@ class VMTranslator {
         void verboseOutput(const std::string& message);
 
     public:
-        VMTranslator(const std::string& inputFile, const std::string& outputFile, bool verbose = false);
+        VMTranslator(std::string inputFile, std::string outputFile, bool verbose = false);
 
         void translate();
 };
