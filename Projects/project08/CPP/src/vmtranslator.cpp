@@ -1,8 +1,8 @@
 #include "vmtranslator.h"
 #include <iostream>
 
-VMTranslator::VMTranslator(const std::string& inputFile, const std::string& outputFile, bool verbose)
-    : parser(inputFile), codeWriter(outputFile), verbose(verbose) {
+VMTranslator::VMTranslator(std::string inputFile, std::string outputFile, bool verbose)
+    : parser(std::move(inputFile)), codeWriter(std::move(outputFile)), verbose(verbose) {
     codeWriter.setFileName(inputFile);
 }
 

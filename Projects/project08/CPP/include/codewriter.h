@@ -24,6 +24,7 @@ class CodeWriter {
         void setFileName(const std::string& fileName);
         void writeArithmetic(const std::string& command);
         void writePushPop(const std::string& command, const std::string& segment, int index);
+        void close();
         
         //chapter 8 additions
         void writeInit();
@@ -33,8 +34,6 @@ class CodeWriter {
         void writeCall(const std::string& functionName, int numArgs);
         void writeReturn();
         void writeFunction(const std::string& functionName, int numLocals);
-        
-        void close();
 };
 
 #endif // CODEWRITER_H

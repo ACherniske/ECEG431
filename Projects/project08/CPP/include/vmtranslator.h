@@ -14,7 +14,7 @@ class VMTranslator {
         void verboseOutput(const std::string& message);
 
     public:
-        VMTranslator(const std::string& inputFile, const std::string& outputFile, bool verbose = false);
+        VMTranslator(std::string inputFile, std::string outputFile, bool verbose = false);
 
         void translate();
 };

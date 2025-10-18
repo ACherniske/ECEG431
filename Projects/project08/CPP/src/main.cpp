@@ -18,7 +18,7 @@ void showHelp(const char* programName) {
     std::cout << " Files/directories can also be provided as positional arguments" << std::endl;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, const char* const argv[]) {
     bool verbose = false;
     bool showHelpFlag = false;
     std::string inputPath;
@@ -113,13 +113,8 @@ int main(int argc, char* argv[]) {
         vmFiles.push_back(inputPath);
         
         //create output file name (.asm)
-        outputFile = inputPath;
-        size_t lastDot = outputFile.find_last_of('.');
-        if (lastDot != std::string::npos) {
-            outputFile = outputFile.substr(0, lastDot) + ".asm";
-        } else {
-            outputFile += ".asm";
-        }
+        std::filesystem::path p(inputPath);
+        std::string outputFile = p.replace_extension(".asm").string();
     }
     
     if (verbose) {

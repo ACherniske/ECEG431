@@ -33,20 +33,25 @@ void CodeWriter::setFileName(const std::string& fileName) {
     }
 }
 
-std::string CodeWriter::generateLabel(const std::string& prefix) {
+std::string CodeWriter::generateLabel(const std::string& prefix) { //generate unique label ex. TRUE_1, END_2
     return prefix + "_" + std::to_string(++labelCounter);
 }
 
 void CodeWriter::writeArithmetic(const std::string& command) {
+    /**
+     * Writes the assembly code that is the translation of the given arithmetic command.
+     * Valid commands are: add, sub, neg, eq, gt, lt, and, or, not
+     * @param command the arithmetic command to translate
+     */
     outputFile << "//" << command << std::endl;
 
     if (command == "add") {
         outputFile << "@SP\n"
-                   << "AM=M-1\n"
+                   << "AM=M-1\n" //SP = SP - 1, A = SP
                    << "D=M\n"
                    << "@SP\n"
-                   << "A=M-1\n"
-                   << "M=M+D\n";
+                   << "A=M-1\n" //A = SP - 1
+                   << "M=M+D\n"; //add top two stack values
     } else if (command == "sub") {
         outputFile << "@SP\n"
                    << "AM=M-1\n"
@@ -90,6 +95,10 @@ void CodeWriter::writeArithmetic(const std::string& command) {
 }
 
 void CodeWriter::writeComparison(const std::string& jumpType) {
+    /**
+     * Writes the assembly code that is the translation of the given comparison command.
+     * @param jumpType the type of jump to perform (JEQ, JGT, JLT)
+     */
     std::string labelTrue = generateLabel("TRUE");
     std::string labelEnd = generateLabel("END");
 
@@ -114,6 +123,13 @@ void CodeWriter::writeComparison(const std::string& jumpType) {
 }
 
 void CodeWriter::writePushPop(const std::string& command, const std::string& segment, int index) {
+    /**
+     * Writes the assembly code that is the translation of the given command, 
+     * where command is either C_PUSH or C_POP.
+     * @param command the command type ("push" or "pop")
+     * @param segment the memory segment to operate on
+     * @param index the index within the segment
+     */
     if (command == "push") {
         outputFile << "// push " << segment << " " << index << std::endl;
 
@@ -206,6 +222,11 @@ void CodeWriter::writePushPop(const std::string& command, const std::string& seg
 }
 
 void CodeWriter::writePushSegment(const std::string& segment, int index) {
+    /**
+     * Helper function to write push commands for segments that use base pointers.
+     * @param segment the base segment pointer (LCL, ARG, THIS, THAT)
+     * @param index the index within the segment
+     */
     outputFile << "@" << segment << "\n"
                << "D=M\n"
                << "@" << index << "\n"
@@ -219,6 +240,11 @@ void CodeWriter::writePushSegment(const std::string& segment, int index) {
 }
 
 void CodeWriter::writePopSegment(const std::string& segment, int index) {
+    /**
+     * Helper function to write pop commands for segments that use base pointers.
+     * @param segment the base segment pointer (LCL, ARG, THIS, THAT)
+     * @param index the index within the segment
+     */
     outputFile << "@" << segment << "\n"
                << "D=M\n"
                << "@" << index << "\n"
@@ -236,44 +262,83 @@ void CodeWriter::writePopSegment(const std::string& segment, int index) {
 //chapter 8 methods
 
 void CodeWriter::writeInit() {
+    /**
+     * Writes the assembly code that effects the VM initialization,
+     * also called bootstrap code. This code must be placed at the
+     * beginning of the output file.
+     */
     outputFile << "// Bootstrap code\n"
                << "@256\n"
                << "D=A\n"
                << "@SP\n"
                << "M=D\n";
     
-    writeCall("Sys.init", 0);
+    writeCall("Sys.init", 0); //call Sys.init with 0 args
 }
 
 void CodeWriter::writeLabel(const std::string& label) {
+    /**
+     * Writes the assembly code that is the translation of the given label command.
+     * The label is function-scoped and uses the format functionName$label.
+     * Example: (SimpleFunction$LOOP)
+     * @param label the label to declare
+     */
     outputFile << "// label " << label << std::endl;
-    outputFile << "(" << currentFunction << "$" << label << ")\n";
+    outputFile << "(" << currentFunction << "$" << label << ")\n"; //functionName$label ex. SimpleFunction$LOOP
     outputFile << std::endl;
 }
 
 void CodeWriter::writeGoto(const std::string& label) {
+    /**
+     * Writes the assembly code that is the translation of the given goto command.
+     * Unconditional jump to a function-scoped label using the format functionName$label.
+     * Example: @SimpleFunction$LOOP 0;JMP
+     * @param label the label to go to
+     */
     outputFile << "// goto " << label << std::endl;
-    outputFile << "@" << currentFunction << "$" << label << "\n"
+    outputFile << "@" << currentFunction << "$" << label << "\n" //functionName$label
                << "0;JMP\n";
     outputFile << std::endl;
 }
 
 void CodeWriter::writeIf(const std::string& label) {
+    /**
+     * Writes the assembly code that is the translation of the given if-goto command.
+     * Conditional jump to a function-scoped label using the format functionName$label.
+     * Example: @SimpleFunction$LOOP D;JNE
+     * @param label the label to go to if top stack value != 0
+     */
     outputFile << "// if-goto " << label << std::endl;
     outputFile << "@SP\n"
                << "AM=M-1\n"
                << "D=M\n"
-               << "@" << currentFunction << "$" << label << "\n"
+               << "@" << currentFunction << "$" << label << "\n" //functionName$label
                << "D;JNE\n";
     outputFile << std::endl;
 }
 
 void CodeWriter::writeCall(const std::string& functionName, int numArgs) {
-    std::string returnLabel = "RETURN_" + std::to_string(++callCounter);
+    /**
+     * Writes the assembly code that is the translation of the given call command.
+     * 
+     * process: 
+     * push return-address; //unique label for return address
+     * push LCL; //save LCL of caller for later restoration
+     * push ARG; //save ARG of caller for later restoration
+     * push THIS; //save THIS of caller for later restoration
+     * push THAT; //save THAT of caller for later restoration
+     * ARG = SP-n-5; //reposition ARG for callee
+     * LCL = SP;  //reposition LCL for callee
+     * goto functionName; (return-address) //transfer control to callee
+     * 
+     * @param functionName the name of the function to call ex. Sys.init
+     * @param numArgs the number of arguments to pass to the function
+     */
+    std::string returnLabel = "RETURN_" + std::to_string(++callCounter); //unique return label
     
     outputFile << "// call " << functionName << " " << numArgs << std::endl;
     
-    // Push return address
+    // Push return address to stack
     outputFile << "@" << returnLabel << "\n"
                << "D=A\n"
                << "@SP\n"
@@ -282,7 +347,7 @@ void CodeWriter::writeCall(const std::string& functionName, int numArgs) {
                << "@SP\n"
                << "M=M+1\n";
     
-    // Push LCL
+    // Push LCL to save caller's LCL for later restoration
     outputFile << "@LCL\n"
                << "D=M\n"
                << "@SP\n"
@@ -319,18 +384,18 @@ void CodeWriter::writeCall(const std::string& functionName, int numArgs) {
                << "M=M+1\n";
     
     // ARG = SP - n - 5
-    outputFile << "@SP\n"
-               << "D=M\n"
-               << "@" << (numArgs + 5) << "\n"
-               << "D=D-A\n"
-               << "@ARG\n"
-               << "M=D\n";
+    outputFile << "@SP\n" //get current SP
+               << "D=M\n" //D = SP
+               << "@" << (numArgs + 5) << "\n" // subtract (numArgs + 5) from SP: SP - numArgs - 5
+               << "D=D-A\n" // D = SP - numArgs - 5
+               << "@ARG\n" //set ARG 
+               << "M=D\n"; //ARG = SP - n - 5 ARG now points to base of args for callee
     
     // LCL = SP
-    outputFile << "@SP\n"
-               << "D=M\n"
-               << "@LCL\n"
-               << "M=D\n";
+    outputFile << "@SP\n" //reposition LCL for callee
+               << "D=M\n" //D = SP
+               << "@LCL\n" //set LCL
+               << "M=D\n"; //LCL = SP
     
     // goto functionName
     outputFile << "@" << functionName << "\n"
@@ -342,6 +407,20 @@ void CodeWriter::writeCall(const std::string& functionName, int numArgs) {
 }
 
 void CodeWriter::writeReturn() {
+    /**
+     * Writes the assembly code that is the translation of the given return command.
+     * 
+     * process:
+     * FRAME = LCL; //FRAME is a temporary variable
+     * RET = *(FRAME-5); //get return address
+     * *ARG = pop(); //reposition return value for caller
+     * SP = ARG + 1; //restore SP of caller
+     * THAT = *(FRAME-1); //restore THAT of caller
+     * THIS = *(FRAME-2); //restore THIS of caller
+     * ARG = *(FRAME-3); //restore ARG of caller
+     * LCL = *(FRAME-4); //restore LCL of caller
+     * goto RET; //goto return address
+     */
     outputFile << "// return\n";
     
     // FRAME = LCL (using R13 as FRAME)
@@ -407,18 +486,29 @@ void CodeWriter::writeReturn() {
 }
 
 void CodeWriter::writeFunction(const std::string& functionName, int numLocals) {
+    /**
+     * Writes the assembly code that is the translation of the given function command.
+     * 
+     * process:
+     * (functionName) //declare function label
+     * repeat numLocals times:
+     *     push 0 //initialize local variables to 0
+     * 
+     * @param functionName the name of the function
+     * @param numLocals the number of local variables to initialize
+     */
     currentFunction = functionName;
     
     outputFile << "// function " << functionName << " " << numLocals << std::endl;
     outputFile << "(" << functionName << ")\n";
     
-    //initialize local variables to 0
+    //initialize local variables to 0 by pushing 0 onto stack numLocals times
     for (int i = 0; i < numLocals; i++) {
-        outputFile << "@SP\n"
-                   << "A=M\n"
-                   << "M=0\n"
-                   << "@SP\n"
-                   << "M=M+1\n";
+        outputFile << "@SP\n" //push 0
+                   << "A=M\n" //get address at SP
+                   << "M=0\n" //set that address to 0
+                   << "@SP\n" //increment SP
+                   << "M=M+1\n"; //SP = SP + 1
     }
     outputFile << std::endl;
 }
