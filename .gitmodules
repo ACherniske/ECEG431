@@ -1,0 +1,3 @@
+[submodule "Projects/project09/JackTetris"]
+	path = Projects/project09/JackTetris
+	url = https://github.com/Swimotter/JackTetris
