@@ -351,15 +351,15 @@ void CompilationEngine::compileTerm() { //see grammar for term
         //identifier
         writeTerminal();
         
-        if (tokenizer.getCurrentToken() == "[") {
+        if (tokenizer.getCurrentToken() == "[") { //array access
             eatSymbol('[');
-            compileExpression();
+            compileExpression(); //index expression
             eatSymbol(']');
-        } else if (tokenizer.getCurrentToken() == "(") {
+        } else if (tokenizer.getCurrentToken() == "(") { //subroutine call
             eatSymbol('(');
-            compileExpressionList();
+            compileExpressionList(); //argument list
             eatSymbol(')');
-        } else if (tokenizer.getCurrentToken() == ".") {
+        } else if (tokenizer.getCurrentToken() == ".") { //subroutine call
             eatSymbol('.');
             writeTerminal(); //subroutineName
             eatSymbol('(');

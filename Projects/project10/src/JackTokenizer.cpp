@@ -232,7 +232,7 @@ void JackTokenizer::writeTokensToXml(const std::string& outputFile) { //write al
                 out << "<keyword> " << currentToken << " </keyword>\n";
                 break;
             case TokenType::SYMBOL: {
-                std::string escaped = currentToken;
+                std::string escaped = currentToken; // Escape special characters safe for XML
                 if (escaped == "<") escaped = "&lt;";
                 else if (escaped == ">") escaped = "&gt;";
                 else if (escaped == "&") escaped = "&amp;";
